@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pi Calendar Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <div class="dashboard">
+      <div class="left">
+        <div class="card clock-card">
+          <p class="label">Current Time</p>
+          <h1 id="clock">--:--:--</h1>
+          <p id="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
+        </div>
+
+        <div class="card weather-card">
+          <p class="label">Weather</p>
+          <h2>{{ weather.city }}</h2>
+          <p class="temp">{{ weather.temp }}</p>
+          <p>{{ weather.condition }}</p>
+        </div>
+      </div>
+
+      <div class="card events-card">
+        <p class="label">Upcoming Events</p>
+        <ul>
+          {% for event in events %}
+          <li>
+            <span class="time">{{ event.time }}</span>
+            <span>{{ event.title }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      function updateClock() {
+        const now = new Date();
+        document.getElementById("clock").textContent = now.toLocaleTimeString();
+        document.getElementById("date").textContent = now.toLocaleDateString([], {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric"
+        });
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+    </script>
+  </body>
+</html>
