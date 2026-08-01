@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Calendar Dashboard
+Exec=/home/pi/calendar/start-kiosk.sh
+Terminal=false
+X-KeepTerminal=false
+StartupNotify=false

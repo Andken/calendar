@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# get variables
+if [ -f /home/bendev/.calendar_env ]; then
+  . /home/bendev/.calendar_env
+fi
+
+
+# Set output
+kanshi >/dev/null 2>&1 &

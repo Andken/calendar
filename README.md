@@ -70,6 +70,20 @@ Check status:
 sudo systemctl status calendar-dashboard.service
 ```
 
+## Full-screen kiosk mode on boot
+To have Chromium open the dashboard automatically after boot, copy the kiosk service and enable it:
+```bash
+chmod +x /home/pi/calendar/start-kiosk.sh
+sudo cp /home/pi/calendar/kiosk.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now kiosk.service
+```
+
+Check status:
+```bash
+sudo systemctl status kiosk.service
+```
+
 ## Notes
 - If `OPENWEATHER_API_KEY` is not set, the app will use fallback sample weather data.
 - Later, you can add Google Calendar integration and replace the sample event list with real calendar data.

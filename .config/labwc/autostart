@@ -1,0 +1,5 @@
+#!/bin/sh
+
+
+# Set output
+kanshi >/dev/null 2>&1 &
