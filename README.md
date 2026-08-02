@@ -57,7 +57,7 @@ On a Raspberry Pi with desktop installed, you can run Chromium in kiosk mode:
 chromium-browser --kiosk http://localhost:3001
 ```
 
-## Optional systemd auto-start
+## Optional systemd auto-start for the Flask app
 Copy `calendar-dashboard.service` to `/etc/systemd/system/` and enable it:
 ```bash
 sudo cp calendar-dashboard.service /etc/systemd/system/
@@ -70,18 +70,29 @@ Check status:
 sudo systemctl status calendar-dashboard.service
 ```
 
-## Full-screen kiosk mode on boot
-To have Chromium open the dashboard automatically after boot, copy the kiosk service and enable it:
+## Start Chromium on desktop login (recommended)
+Instead of using systemd for Chromium, it is more reliable to launch the browser from the Pi desktop session.
+
+Copy the desktop autostart file:
 ```bash
+mkdir -p /home/pi/.config/autostart
+cp /home/pi/calendar/autostart.desktop /home/pi/.config/autostart/
 chmod +x /home/pi/calendar/start-kiosk.sh
-sudo cp /home/pi/calendar/kiosk.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now kiosk.service
 ```
 
-Check status:
+Then reboot the Pi and Chromium should open once the desktop session starts.
+
+## Disable the systemd Chromium start
+If you previously enabled the `kiosk.service`, disable it now:
 ```bash
-sudo systemctl status kiosk.service
+sudo systemctl disable --now kiosk.service
+sudo rm -f /etc/systemd/system/kiosk.service
+sudo systemctl daemon-reload
+```
+
+If you also want to stop the browser service entirely while keeping the Flask app service, use:
+```bash
+sudo systemctl disable --now kiosk.service
 ```
 
 ## Notes
