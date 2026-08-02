@@ -1,10 +1,20 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 from flask import Flask, render_template
+
+# Google Calendar imports (optional)
+try:
+    from google.oauth2.credentials import Credentials
+    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+    from google.auth.transport.requests import Request
+    from googleapiclient.discovery import build
+    GCAL_AVAILABLE = True
+except Exception:
+    GCAL_AVAILABLE = False
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -59,6 +69,66 @@ def get_weather():
 
 
 def get_events():
+    # If Google Calendar integration is available and a token exists, fetch events
+    if not GCAL_AVAILABLE:
+        return DEFAULT_EVENTS
+
+    SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+    now = datetime.utcnow()
+    time_min = now.isoformat() + "Z"
+    time_max = (now + timedelta(days=7)).isoformat() + "Z"
+
+    service = None
+    service_account_path = BASE_DIR / "service_account.json"
+    token_path = BASE_DIR / "token.json"
+
+    try:
+        if service_account_path.exists():
+            creds = ServiceAccountCredentials.from_service_account_file(
+                str(service_account_path), scopes=SCOPES
+            )
+            delegated_email = os.getenv("GOOGLE_CALENDAR_DELEGATED_EMAIL", "")
+            if delegated_email:
+                creds = creds.with_subject(delegated_email)
+        elif token_path.exists():
+            creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+            if creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+        else:
+            return DEFAULT_EVENTS
+
+        service = build("calendar", "v3", credentials=creds)
+        events_result = (
+            service.events()
+            .list(
+                calendarId="primary",
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+        )
+        items = events_result.get("items", [])
+        events = []
+        for it in items:
+            start = it.get("start", {}).get("dateTime") or it.get("start", {}).get("date")
+            if start and "T" in str(start):
+                time_str = str(start).split("T")[1][:5]
+            else:
+                time_str = str(start)
+            events.append(
+                {
+                    "title": it.get("summary", "(No title)"),
+                    "time": time_str,
+                    "location": it.get("location", ""),
+                }
+            )
+        if events:
+            return events
+    except Exception as e:
+        print("Google Calendar fetch error:", e)
+
     return DEFAULT_EVENTS
 
 

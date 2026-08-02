@@ -82,19 +82,32 @@ chmod +x /home/pi/calendar/start-kiosk.sh
 
 Then reboot the Pi and Chromium should open once the desktop session starts.
 
-## Disable the systemd Chromium start
-If you previously enabled the `kiosk.service`, disable it now:
-```bash
-sudo systemctl disable --now kiosk.service
-sudo rm -f /etc/systemd/system/kiosk.service
-sudo systemctl daemon-reload
-```
 
-If you also want to stop the browser service entirely while keeping the Flask app service, use:
-```bash
-sudo systemctl disable --now kiosk.service
-```
+## Google Calendar integration
+The app supports two Google Calendar auth modes:
+
+### 1) OAuth client flow
+1. Create OAuth credentials (Desktop app) in Google Cloud Console.
+2. Download `client_secrets.json` into your project folder.
+3. Run:
+   ```bash
+   python3 get_token.py
+   ```
+4. Copy `token.json` to the Pi project folder.
+
+### 2) Service account flow
+1. Create a service account in Google Cloud Console.
+2. Download the JSON key and save it as `service_account.json` in the project folder, or copy `service_account.example.json` and update the placeholder values.
+3. Share the target calendar with the service account email, or set a delegated user.
+4. Add this to `.env`:
+   ```bash
+   GOOGLE_CALENDAR_DELEGATED_EMAIL=user@example.com
+   ```
+5. Restart the Flask app.
+
+The service account path is `service_account.json`, and `GOOGLE_CALENDAR_DELEGATED_EMAIL` is optional but required for delegated access.
 
 ## Notes
+- `service_account.json`, `client_secrets.json`, and `token.json` are ignored by `.gitignore`.
 - If `OPENWEATHER_API_KEY` is not set, the app will use fallback sample weather data.
-- Later, you can add Google Calendar integration and replace the sample event list with real calendar data.
+- Later, you can add additional calendar sources or make event styling more prominent.

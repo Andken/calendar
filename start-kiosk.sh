@@ -6,6 +6,29 @@ export XAUTHORITY=/home/pi/.Xauthority
 
 sleep 10
 
+# Boot-time readiness checks
+# Wait until system uptime passes a small threshold so services and desktop settle
+UPTIME_THRESHOLD=60
+UPTIME_NOW=$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0)
+if [ "$UPTIME_NOW" -lt "$UPTIME_THRESHOLD" ]; then
+  echo "$(date) uptime $UPTIME_NOW < $UPTIME_THRESHOLD; waiting..." >> /tmp/calendar-kiosk.log
+  while [ "$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0)" -lt "$UPTIME_THRESHOLD" ]; do
+    sleep 1
+  done
+  echo "$(date) uptime threshold reached" >> /tmp/calendar-kiosk.log
+fi
+
+# Wait for an X server to be present before attempting to start the browser
+for i in {1..30}; do
+  if pgrep -x Xorg >/dev/null 2>&1 || pgrep -x X >/dev/null 2>&1; then
+    echo "$(date) X server detected" >> /tmp/calendar-kiosk.log
+    break
+  fi
+  echo "$(date) waiting for X server" >> /tmp/calendar-kiosk.log
+  sleep 2
+done
+
+
 echo "$(date) kiosk start" >> /tmp/calendar-kiosk.log
 if [ -z "$DISPLAY" ]; then
   export DISPLAY=:0

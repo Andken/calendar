@@ -3,3 +3,7 @@ __pycache__/
 .venv/
 venv/
 .env
+client_secrets.json
+client_secret.json
+service_account.json
+token.json
