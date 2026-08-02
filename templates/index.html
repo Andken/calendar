@@ -8,38 +8,57 @@
   </head>
   <body>
     <div class="dashboard">
-      <div class="left">
+      <section class="hero">
         <div class="card clock-card">
-          <p class="label">Current Time</p>
+          <p class="label">Today</p>
           <h1 id="clock">--:--:--</h1>
-          <p id="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
+          <p id="date" class="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
         </div>
 
         <div class="card weather-card">
           <p class="label">Weather</p>
-          <h2>{{ weather.city }}</h2>
-          <p class="temp">{{ weather.temp }}</p>
-          <p>{{ weather.condition }}</p>
+          <div class="weather-main">
+            <div>
+              <h2>{{ weather.city }}</h2>
+              <p class="temp">{{ weather.temp }}</p>
+            </div>
+            <div class="weather-meta">
+              <p>{{ weather.condition }}</p>
+              <p>{{ weather.description }}</p>
+              <p>Humidity {{ weather.humidity }}%</p>
+              <p>Wind {{ weather.wind_kph }} km/h</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card events-card">
+      <section class="card events-card">
         <p class="label">Upcoming Events</p>
         <ul>
           {% for event in events %}
           <li>
             <span class="time">{{ event.time }}</span>
-            <span>{{ event.title }}</span>
+            <div class="event-body">
+              <span class="event-title">{{ event.title }}</span>
+              {% if event.location %}
+              <span class="event-location">{{ event.location }}</span>
+              {% endif %}
+            </div>
           </li>
           {% endfor %}
         </ul>
-      </div>
+      </section>
     </div>
 
     <script>
       function updateClock() {
         const now = new Date();
-        document.getElementById("clock").textContent = now.toLocaleTimeString();
+        document.getElementById("clock").textContent = now.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true
+        });
         document.getElementById("date").textContent = now.toLocaleDateString([], {
           weekday: "long",
           month: "long",
