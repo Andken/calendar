@@ -7,7 +7,15 @@ export XAUTHORITY=/home/pi/.Xauthority
 sleep 10
 
 echo "$(date) kiosk start" >> /tmp/calendar-kiosk.log
+if [ -z "$DISPLAY" ]; then
+  export DISPLAY=:0
+fi
+if [ -z "$XAUTHORITY" ]; then
+  export XAUTHORITY=/home/pi/.Xauthority
+fi
+
 echo "$(date) DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY" >> /tmp/calendar-kiosk.log
+ls -l "$XAUTHORITY" >> /tmp/calendar-kiosk.log 2>&1 || true
 
 for i in {1..30}; do
   if curl -sf http://127.0.0.1:3001 >/dev/null 2>&1; then
@@ -36,9 +44,12 @@ if [ -z "$BROWSER" ]; then
   exit 1
 fi
 
+PROFILE_DIR="/tmp/calendar-chrome-profile"
+mkdir -p "$PROFILE_DIR"
+
 echo "$(date) found browser: $BROWSER" >> /tmp/calendar-kiosk.log
 
-echo "$(date) launching browser: $BROWSER --noerrdialogs --disable-infobars --kiosk --start-maximized http://localhost:3001" >> /tmp/calendar-kiosk.log
+echo "$(date) launching browser: $BROWSER --noerrdialogs --disable-infobars --kiosk --start-maximized --password-store=basic --no-first-run --no-default-browser-check --user-data-dir=$PROFILE_DIR http://localhost:3001" >> /tmp/calendar-kiosk.log
 "$BROWSER" \
   --noerrdialogs \
   --disable-infobars \
@@ -47,6 +58,7 @@ echo "$(date) launching browser: $BROWSER --noerrdialogs --disable-infobars --ki
   --password-store=basic \
   --no-first-run \
   --no-default-browser-check \
+  --user-data-dir="$PROFILE_DIR" \
   http://localhost:3001 >>/tmp/calendar-kiosk.log 2>&1 &
 BROWSER_PID=$!
 
