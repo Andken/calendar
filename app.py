@@ -30,11 +30,16 @@ DEFAULT_WEATHER = {
     "wind_kph": 10,
 }
 
-DEFAULT_EVENTS = [
-    {"title": "Morning standup", "time": "09:00", "location": "Office"},
-    {"title": "Lunch with Maya", "time": "12:30", "location": "Cafeteria"},
-    {"title": "Project review", "time": "15:00", "location": "Conference Room"},
-]
+def get_default_events():
+    today = datetime.utcnow().date()
+    return [
+        {"title": "Morning standup", "time": "09:00", "location": "Office", "date": (today + timedelta(days=1)).strftime("%Y-%m-%d")},
+        {"title": "Lunch with Maya", "time": "12:30", "location": "Cafeteria", "date": (today + timedelta(days=2)).strftime("%Y-%m-%d")},
+        {"title": "Project review", "time": "15:00", "location": "Conference Room", "date": (today + timedelta(days=4)).strftime("%Y-%m-%d")},
+    ]
+
+
+DEFAULT_EVENTS = get_default_events()
 
 
 def get_weather():
@@ -71,7 +76,7 @@ def get_weather():
 def get_events():
     # If Google Calendar integration is available and a token exists, fetch events
     if not GCAL_AVAILABLE:
-        return DEFAULT_EVENTS
+        return get_default_events()
 
     SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
     now = datetime.utcnow()
@@ -116,14 +121,17 @@ def get_events():
         for it in items:
             start = it.get("start", {}).get("dateTime") or it.get("start", {}).get("date")
             if start and "T" in str(start):
+                event_date = datetime.fromisoformat(str(start).replace("Z", "+00:00")).date().strftime("%Y-%m-%d")
                 time_str = str(start).split("T")[1][:5]
             else:
+                event_date = str(start)
                 time_str = str(start)
             events.append(
                 {
                     "title": it.get("summary", "(No title)"),
                     "time": time_str,
                     "location": it.get("location", ""),
+                    "date": event_date,
                 }
             )
         if events:
@@ -131,17 +139,48 @@ def get_events():
     except Exception as e:
         print("Google Calendar fetch error:", e)
 
-    return DEFAULT_EVENTS
+    return get_default_events()
+
+
+def build_week_grid(events):
+    today = datetime.utcnow().date()
+    start_of_week = today - timedelta(days=today.weekday() + 1)
+    weeks = []
+
+    for week_index in range(4):
+        week_start = start_of_week + timedelta(days=week_index * 7)
+        days = []
+        for offset in range(7):
+            day_date = week_start + timedelta(days=offset)
+            day_events = [
+                event
+                for event in events
+                if event.get("date") == day_date.strftime("%Y-%m-%d")
+            ]
+            day_events = sorted(day_events, key=lambda item: item.get("time", ""))
+            days.append(
+                {
+                    "date": day_date,
+                    "label": day_date.strftime("%a"),
+                    "day": day_date.day,
+                    "is_today": day_date == today,
+                    "events": day_events,
+                }
+            )
+        weeks.append({"days": days})
+
+    return weeks
 
 
 @app.route("/")
 def index():
     now = datetime.now()
+    events = get_events()
     return render_template(
         "index.html",
         now=now,
         weather=get_weather(),
-        events=get_events(),
+        weeks=build_week_grid(events),
     )
 
 

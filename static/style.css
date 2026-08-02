@@ -92,46 +92,69 @@ body {
   flex-direction: column;
 }
 
-.events-card ul {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0 0;
+.week-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.week-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.day-cell {
+  min-height: 120px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.16);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
-.events-card li {
-  display: flex;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-  align-items: flex-start;
+.day-cell.today {
+  border-color: #7dd3fc;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.35);
 }
 
-.events-card li:last-child {
-  border-bottom: none;
+.day-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  opacity: 0.7;
 }
 
-.time {
-  font-weight: 700;
-  min-width: 76px;
-  color: #7dd3fc;
-  font-size: 1rem;
-}
-
-.event-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.event-title {
+.day-number {
   font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.event-pill {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(125, 211, 252, 0.16);
+  font-size: 0.74rem;
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.event-pill.muted {
+  background: transparent;
+  opacity: 0.5;
+  padding-left: 0;
+}
+
+.event-time {
+  color: #7dd3fc;
   font-weight: 600;
 }
 
-.event-location {
-  font-size: 0.95rem;
-  opacity: 0.72;
+.event-title {
+  font-size: 0.8rem;
+  font-weight: 600;
 }

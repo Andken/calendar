@@ -15,6 +15,32 @@
           <p id="date" class="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
         </div>
 
+        <section class="card events-card">
+        <p class="label">Upcoming Events</p>
+        <div class="week-grid">
+          {% for week in weeks %}
+          <div class="week-row">
+            {% for day in week.days %}
+            <div class="day-cell {% if day.is_today %}today{% endif %}">
+              <div class="day-label">{{ day.label }}</div>
+              <div class="day-number">{{ day.day }}</div>
+              {% if day.events %}
+                {% for event in day.events %}
+                <div class="event-pill">
+                  <span class="event-time">{{ event.time }}</span>
+                  <span class="event-title">{{ event.title }}</span>
+                </div>
+                {% endfor %}
+              {% else %}
+              <div class="event-pill muted">—</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+        </section>
+
         <div class="card weather-card">
           <p class="label">Weather</p>
           <div class="weather-main">
@@ -30,23 +56,6 @@
             </div>
           </div>
         </div>
-      </section>
-
-      <section class="card events-card">
-        <p class="label">Upcoming Events</p>
-        <ul>
-          {% for event in events %}
-          <li>
-            <span class="time">{{ event.time }}</span>
-            <div class="event-body">
-              <span class="event-title">{{ event.title }}</span>
-              {% if event.location %}
-              <span class="event-location">{{ event.location }}</span>
-              {% endif %}
-            </div>
-          </li>
-          {% endfor %}
-        </ul>
       </section>
     </div>
 
