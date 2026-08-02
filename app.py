@@ -76,7 +76,9 @@ def get_events():
     SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
     now = datetime.utcnow()
     time_min = now.isoformat() + "Z"
-    time_max = (now + timedelta(days=7)).isoformat() + "Z"
+    days_ahead = int(os.getenv("GOOGLE_CALENDAR_DAYS_AHEAD", "7").strip() or "7")
+    time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
+    calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary").strip() or "primary"
 
     service = None
     service_account_path = BASE_DIR / "service_account.json"
@@ -101,7 +103,7 @@ def get_events():
         events_result = (
             service.events()
             .list(
-                calendarId="primary",
+                calendarId=calendar_id,
                 timeMin=time_min,
                 timeMax=time_max,
                 singleEvents=True,
