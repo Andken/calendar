@@ -32,7 +32,7 @@
             {% for day in week.days %}
             <div class="day-cell {% if day.is_today %}today{% endif %}">
               <div class="day-label">{{ day.label }}</div>
-              <div class="day-number">{{ day.day }}</div>
+              <div class="day-number">{{ day.month }} {{ day.day }}</div>
               {% if day.forecast %}
               <div class="day-forecast">
                 <span>H {{ day.forecast.high }}</span>

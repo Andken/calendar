@@ -308,6 +308,7 @@ def build_week_grid(events, forecast=None):
                 {
                     "date": day_date,
                     "label": day_date.strftime("%a"),
+                    "month": day_date.strftime("%b"),
                     "day": day_date.day,
                     "is_today": day_date == today,
                     "events": day_events,
