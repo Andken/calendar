@@ -95,7 +95,7 @@ body {
 .week-grid {
   display: grid;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 0;
   width: 100%;
 }
 
