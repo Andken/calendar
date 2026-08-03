@@ -40,6 +40,8 @@ SEATTLE_TZ = ZoneInfo("America/Los_Angeles")
 def get_default_events():
     today = datetime.now(SEATTLE_TZ).date()
     return [
+        {"title": "Morning Coffee", "time": "08:30-09:00", "location": "Kitchen", "date": today.strftime("%Y-%m-%d")},
+        {"title": "Team Sync", "time": "11:00-11:30", "location": "Zoom", "date": today.strftime("%Y-%m-%d")},
         {"title": "Morning standup", "time": "09:00-10:00", "location": "Office", "date": (today + timedelta(days=1)).strftime("%Y-%m-%d")},
         {"title": "Lunch with Maya", "time": "12:30-13:30", "location": "Cafeteria", "date": (today + timedelta(days=2)).strftime("%Y-%m-%d")},
         {"title": "Project review", "time": "15:00-16:00", "location": "Conference Room", "date": (today + timedelta(days=4)).strftime("%Y-%m-%d")},
@@ -206,10 +208,11 @@ def get_events():
         return get_default_events()
 
     SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
-    now = datetime.now(SEATTLE_TZ).astimezone(timezone.utc)
-    time_min = now.isoformat().replace("+00:00", "Z")
+    now = datetime.now(SEATTLE_TZ)
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    time_min = start_of_today.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     days_ahead = int(os.getenv("GOOGLE_CALENDAR_DAYS_AHEAD", "28").strip() or "28")
-    time_max = (now + timedelta(days=days_ahead)).isoformat().replace("+00:00", "Z")
+    time_max = (now + timedelta(days=days_ahead)).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary").strip() or "primary"
 
     service = None
