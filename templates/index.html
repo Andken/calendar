@@ -10,7 +10,6 @@
     <div class="dashboard">
       <section class="hero">
         <div class="card clock-card">
-          <p class="label">Today</p>
           <h1 id="clock">--:--:--</h1>
           <p id="date" class="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
         </div>
@@ -73,7 +72,7 @@
           month: "long",
           day: "numeric",
           year: "numeric"
-        });
+        }).replace(/, /g, ", ");
       }
       updateClock();
       setInterval(updateClock, 1000);
