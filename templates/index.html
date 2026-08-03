@@ -33,6 +33,13 @@
             <div class="day-cell {% if day.is_today %}today{% endif %}">
               <div class="day-label">{{ day.label }}</div>
               <div class="day-number">{{ day.day }}</div>
+              {% if day.forecast %}
+              <div class="day-forecast">
+                <span>H {{ day.forecast.high }}</span>
+                <span>L {{ day.forecast.low }}</span>
+                <span>Rain {{ day.forecast.rain }}</span>
+              </div>
+              {% endif %}
               {% if day.events %}
                 {% for event in day.events %}
                 <div class="event-pill">

@@ -152,6 +152,54 @@ def get_weather():
         return {**DEFAULT_WEATHER, "city": display_city}
 
 
+def get_daily_forecast(days=5):
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": 47.6101,
+        "longitude": -122.2015,
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_mean",
+        "timezone": "America/Los_Angeles",
+        "temperature_unit": "fahrenheit",
+        "precipitation_unit": "inch",
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=6)
+        response.raise_for_status()
+        data = response.json()
+        daily = data.get("daily", {})
+        times = daily.get("time", [])
+        highs = daily.get("temperature_2m_max", [])
+        lows = daily.get("temperature_2m_min", [])
+        rains = daily.get("precipitation_probability_mean", [])
+
+        forecast = []
+        for index in range(min(days, len(times))):
+            forecast.append(
+                {
+                    "date": times[index],
+                    "high": f"{round(float(highs[index]))}°F",
+                    "low": f"{round(float(lows[index]))}°F",
+                    "rain": f"{int(float(rains[index]))}%",
+                }
+            )
+        if forecast:
+            return forecast
+    except requests.RequestException:
+        pass
+
+    today = datetime.now(SEATTLE_TZ).date()
+    return [
+        {
+            "date": (today + timedelta(days=offset)).strftime("%Y-%m-%d"),
+            "high": DEFAULT_WEATHER["high"],
+            "low": DEFAULT_WEATHER["low"],
+            "rain": DEFAULT_WEATHER["rain_chance"],
+        }
+        for offset in range(days)
+    ]
+
+
 def get_events():
     # If Google Calendar integration is available and a token exists, fetch events
     if not GCAL_AVAILABLE:
@@ -228,13 +276,18 @@ def get_events():
     return get_default_events()
 
 
-def build_week_grid(events):
+def build_week_grid(events, forecast=None):
     today = datetime.now(SEATTLE_TZ).date()
     if today.weekday() == 6:
         start_of_week = today
     else:
         start_of_week = today - timedelta(days=today.weekday() + 1)
     weeks = []
+
+    forecast_by_date = {}
+    if forecast:
+        for item in forecast:
+            forecast_by_date[item.get("date")] = item
 
     for week_index in range(4):
         week_start = start_of_week + timedelta(days=week_index * 7)
@@ -247,6 +300,7 @@ def build_week_grid(events):
                 if event.get("date") == day_date.strftime("%Y-%m-%d")
             ]
             day_events = sorted(day_events, key=lambda item: item.get("time", ""))
+            day_key = day_date.strftime("%Y-%m-%d")
             days.append(
                 {
                     "date": day_date,
@@ -254,6 +308,7 @@ def build_week_grid(events):
                     "day": day_date.day,
                     "is_today": day_date == today,
                     "events": day_events,
+                    "forecast": forecast_by_date.get(day_key),
                 }
             )
         weeks.append({"days": days})
@@ -269,7 +324,7 @@ def index():
         "index.html",
         now=now,
         weather=get_weather(),
-        weeks=build_week_grid(events),
+        weeks=build_week_grid(events, forecast=get_daily_forecast(days=7)),
     )
 
 

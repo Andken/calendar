@@ -133,6 +133,15 @@ body {
   font-weight: 700;
 }
 
+.day-forecast {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  opacity: 0.9;
+  line-height: 1.15;
+}
+
 .event-pill {
   padding: 6px 8px;
   border-radius: 8px;
