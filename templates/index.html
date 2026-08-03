@@ -31,15 +31,19 @@
           <div class="week-row">
             {% for day in week.days %}
             <div class="day-cell {% if day.is_today %}today{% endif %}">
-              <div class="day-label">{{ day.label }}</div>
-              <div class="day-number">{{ day.month }} {{ day.day }}</div>
-              {% if day.forecast %}
-              <div class="day-forecast">
-                <span>H {{ day.forecast.high }}</span>
-                <span>L {{ day.forecast.low }}</span>
-                <span>Rain {{ day.forecast.rain }}</span>
+              <div class="day-header">
+                <div class="day-info">
+                  <div class="day-label">{{ day.label }}</div>
+                  <div class="day-number">{{ day.month }} {{ day.day }}</div>
+                </div>
+                {% if day.forecast %}
+                <div class="day-forecast">
+                  <span>H {{ day.forecast.high }}</span>
+                  <span>L {{ day.forecast.low }}</span>
+                  <span>Rain {{ day.forecast.rain }}</span>
+                </div>
+                {% endif %}
               </div>
-              {% endif %}
               {% if day.events %}
                 {% for event in day.events %}
                 <div class="event-pill">
