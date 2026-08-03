@@ -81,7 +81,7 @@ def get_events():
     SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
     now = datetime.utcnow()
     time_min = now.isoformat() + "Z"
-    days_ahead = int(os.getenv("GOOGLE_CALENDAR_DAYS_AHEAD", "7").strip() or "7")
+    days_ahead = int(os.getenv("GOOGLE_CALENDAR_DAYS_AHEAD", "28").strip() or "28")
     time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
     calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary").strip() or "primary"
 
@@ -144,7 +144,10 @@ def get_events():
 
 def build_week_grid(events):
     today = datetime.utcnow().date()
-    start_of_week = today - timedelta(days=today.weekday() + 1)
+    if today.weekday() == 6:
+        start_of_week = today
+    else:
+        start_of_week = today - timedelta(days=today.weekday() + 1)
     weeks = []
 
     for week_index in range(4):
