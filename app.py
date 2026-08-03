@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -121,8 +121,11 @@ def get_events():
         for it in items:
             start = it.get("start", {}).get("dateTime") or it.get("start", {}).get("date")
             if start and "T" in str(start):
-                event_date = datetime.fromisoformat(str(start).replace("Z", "+00:00")).date().strftime("%Y-%m-%d")
-                time_str = str(start).split("T")[1][:5]
+                dt = datetime.fromisoformat(str(start).replace("Z", "+00:00"))
+                seattle_tz = timezone(timedelta(hours=-7))
+                local_dt = dt.astimezone(seattle_tz)
+                event_date = local_dt.date().strftime("%Y-%m-%d")
+                time_str = local_dt.strftime("%H:%M")
             else:
                 event_date = str(start)
                 time_str = str(start)
