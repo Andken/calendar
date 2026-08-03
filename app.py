@@ -24,11 +24,14 @@ app = Flask(__name__)
 
 DEFAULT_WEATHER = {
     "city": "Austin",
-    "temp": "24°C",
+    "temp": "75°F",
     "condition": "Sunny",
     "description": "Clear skies",
     "humidity": 50,
     "wind_kph": 10,
+    "high": "78°F",
+    "low": "68°F",
+    "rain_chance": "10%",
 }
 
 SEATTLE_TZ = ZoneInfo("America/Los_Angeles")
@@ -64,13 +67,24 @@ def get_weather():
         response = requests.get(url, params=params, timeout=6)
         response.raise_for_status()
         data = response.json()
+        temp_c = data.get("main", {}).get("temp", 0)
+        high_c = data.get("main", {}).get("temp_max", temp_c)
+        low_c = data.get("main", {}).get("temp_min", temp_c)
+        rain_prob = 0
+        if data.get("rain"):
+            rain_prob = int(data["rain"].get("1h", 0) * 100)
+        elif data.get("pop") is not None:
+            rain_prob = int(float(data.get("pop", 0)) * 100)
         weather = {
             "city": data.get("name", city),
-            "temp": f"{round(data.get('main', {}).get('temp', 0))}°C",
+            "temp": f"{round(temp_c * 9 / 5 + 32)}°F",
             "condition": data.get("weather", [{}])[0].get("main", DEFAULT_WEATHER["condition"]),
             "description": data.get("weather", [{}])[0].get("description", DEFAULT_WEATHER["description"]),
             "humidity": data.get("main", {}).get("humidity", DEFAULT_WEATHER["humidity"]),
             "wind_kph": round(data.get("wind", {}).get("speed", 0) * 3.6),
+            "high": f"{round(high_c * 9 / 5 + 32)}°F",
+            "low": f"{round(low_c * 9 / 5 + 32)}°F",
+            "rain_chance": f"{rain_prob}%",
         }
         return weather
     except requests.RequestException:

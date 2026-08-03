@@ -10,8 +10,18 @@
     <div class="dashboard">
       <section class="hero">
         <div class="card clock-card">
-          <h1 id="clock">--:--:--</h1>
-          <p id="date" class="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
+          <div class="clock-row">
+            <div>
+              <h1 id="clock">--:--:--</h1>
+              <p id="date" class="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
+            </div>
+            <div class="weather-inline">
+              <div class="weather-metric">Current {{ weather.temp }}</div>
+              <div class="weather-metric">High {{ weather.high }}</div>
+              <div class="weather-metric">Low {{ weather.low }}</div>
+              <div class="weather-metric">Rain {{ weather.rain_chance }}</div>
+            </div>
+          </div>
         </div>
 
         <section class="card events-card">
@@ -40,21 +50,6 @@
         </div>
         </section>
 
-        <div class="card weather-card">
-          <p class="label">Weather</p>
-          <div class="weather-main">
-            <div>
-              <h2>{{ weather.city }}</h2>
-              <p class="temp">{{ weather.temp }}</p>
-            </div>
-            <div class="weather-meta">
-              <p>{{ weather.condition }}</p>
-              <p>{{ weather.description }}</p>
-              <p>Humidity {{ weather.humidity }}%</p>
-              <p>Wind {{ weather.wind_kph }} km/h</p>
-            </div>
-          </div>
-        </div>
       </section>
     </div>
 
