@@ -37,9 +37,9 @@ SEATTLE_TZ = ZoneInfo("America/Los_Angeles")
 def get_default_events():
     today = datetime.now(SEATTLE_TZ).date()
     return [
-        {"title": "Morning standup", "time": "09:00", "location": "Office", "date": (today + timedelta(days=1)).strftime("%Y-%m-%d")},
-        {"title": "Lunch with Maya", "time": "12:30", "location": "Cafeteria", "date": (today + timedelta(days=2)).strftime("%Y-%m-%d")},
-        {"title": "Project review", "time": "15:00", "location": "Conference Room", "date": (today + timedelta(days=4)).strftime("%Y-%m-%d")},
+        {"title": "Morning standup", "time": "09:00-10:00", "location": "Office", "date": (today + timedelta(days=1)).strftime("%Y-%m-%d")},
+        {"title": "Lunch with Maya", "time": "12:30-13:30", "location": "Cafeteria", "date": (today + timedelta(days=2)).strftime("%Y-%m-%d")},
+        {"title": "Project review", "time": "15:00-16:00", "location": "Conference Room", "date": (today + timedelta(days=4)).strftime("%Y-%m-%d")},
     ]
 
 
@@ -124,11 +124,16 @@ def get_events():
         events = []
         for it in items:
             start = it.get("start", {}).get("dateTime") or it.get("start", {}).get("date")
+            end = it.get("end", {}).get("dateTime") or it.get("end", {}).get("date")
             if start and "T" in str(start):
-                dt = datetime.fromisoformat(str(start).replace("Z", "+00:00"))
-                local_dt = dt.astimezone(SEATTLE_TZ)
-                event_date = local_dt.date().strftime("%Y-%m-%d")
-                time_str = local_dt.strftime("%H:%M")
+                start_dt = datetime.fromisoformat(str(start).replace("Z", "+00:00")).astimezone(SEATTLE_TZ)
+                event_date = start_dt.date().strftime("%Y-%m-%d")
+                start_time = start_dt.strftime("%H:%M")
+                if end and "T" in str(end):
+                    end_dt = datetime.fromisoformat(str(end).replace("Z", "+00:00")).astimezone(SEATTLE_TZ)
+                    time_str = f"{start_time}-{end_dt.strftime('%H:%M')}"
+                else:
+                    time_str = start_time
             else:
                 event_date = str(start)
                 time_str = str(start)
