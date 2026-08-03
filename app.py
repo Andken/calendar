@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from dotenv import load_dotenv
@@ -30,8 +31,11 @@ DEFAULT_WEATHER = {
     "wind_kph": 10,
 }
 
+SEATTLE_TZ = ZoneInfo("America/Los_Angeles")
+
+
 def get_default_events():
-    today = datetime.utcnow().date()
+    today = datetime.now(SEATTLE_TZ).date()
     return [
         {"title": "Morning standup", "time": "09:00", "location": "Office", "date": (today + timedelta(days=1)).strftime("%Y-%m-%d")},
         {"title": "Lunch with Maya", "time": "12:30", "location": "Cafeteria", "date": (today + timedelta(days=2)).strftime("%Y-%m-%d")},
@@ -79,10 +83,10 @@ def get_events():
         return get_default_events()
 
     SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
-    now = datetime.utcnow()
-    time_min = now.isoformat() + "Z"
+    now = datetime.now(SEATTLE_TZ).astimezone(timezone.utc)
+    time_min = now.isoformat().replace("+00:00", "Z")
     days_ahead = int(os.getenv("GOOGLE_CALENDAR_DAYS_AHEAD", "28").strip() or "28")
-    time_max = (now + timedelta(days=days_ahead)).isoformat() + "Z"
+    time_max = (now + timedelta(days=days_ahead)).isoformat().replace("+00:00", "Z")
     calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary").strip() or "primary"
 
     service = None
@@ -122,8 +126,7 @@ def get_events():
             start = it.get("start", {}).get("dateTime") or it.get("start", {}).get("date")
             if start and "T" in str(start):
                 dt = datetime.fromisoformat(str(start).replace("Z", "+00:00"))
-                seattle_tz = timezone(timedelta(hours=-7))
-                local_dt = dt.astimezone(seattle_tz)
+                local_dt = dt.astimezone(SEATTLE_TZ)
                 event_date = local_dt.date().strftime("%Y-%m-%d")
                 time_str = local_dt.strftime("%H:%M")
             else:
@@ -146,7 +149,7 @@ def get_events():
 
 
 def build_week_grid(events):
-    today = datetime.utcnow().date()
+    today = datetime.now(SEATTLE_TZ).date()
     if today.weekday() == 6:
         start_of_week = today
     else:
@@ -180,7 +183,7 @@ def build_week_grid(events):
 
 @app.route("/")
 def index():
-    now = datetime.now()
+    now = datetime.now(SEATTLE_TZ)
     events = get_events()
     return render_template(
         "index.html",
