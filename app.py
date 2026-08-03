@@ -23,7 +23,7 @@ load_dotenv(BASE_DIR / ".env")
 app = Flask(__name__)
 
 DEFAULT_WEATHER = {
-    "city": "Austin",
+    "city": "Bellevue, WA 98005",
     "temp": "75°F",
     "condition": "Sunny",
     "description": "Clear skies",
@@ -51,44 +51,105 @@ DEFAULT_EVENTS = get_default_events()
 
 def get_weather():
     api_key = os.getenv("OPENWEATHER_API_KEY", "").strip()
-    city = os.getenv("OPENWEATHER_CITY", "Austin").strip()
+    city = os.getenv("OPENWEATHER_CITY", "98005,US").strip()
+    display_city = DEFAULT_WEATHER["city"]
 
-    if not api_key:
-        return {**DEFAULT_WEATHER, "city": city}
+    if "98005" in city.upper() or "BELLEVUE" in city.upper():
+        latitude, longitude = 47.6101, -122.2015
+        display_city = "Bellevue, WA 98005"
+    else:
+        latitude, longitude = None, None
 
-    url = "https://api.openweathermap.org/data/2.5/weather"
+    if api_key and latitude is None and longitude is None:
+        url = "https://api.openweathermap.org/data/2.5/weather"
+        params = {
+            "q": city,
+            "appid": api_key,
+            "units": "metric",
+        }
+
+        try:
+            response = requests.get(url, params=params, timeout=6)
+            response.raise_for_status()
+            data = response.json()
+            temp_c = data.get("main", {}).get("temp", 0)
+            high_c = data.get("main", {}).get("temp_max", temp_c)
+            low_c = data.get("main", {}).get("temp_min", temp_c)
+            rain_prob = 0
+            if data.get("rain"):
+                rain_prob = int(data["rain"].get("1h", 0) * 100)
+            elif data.get("pop") is not None:
+                rain_prob = int(float(data.get("pop", 0)) * 100)
+            weather = {
+                "city": data.get("name", city),
+                "temp": f"{round(temp_c * 9 / 5 + 32)}°F",
+                "condition": data.get("weather", [{}])[0].get("main", DEFAULT_WEATHER["condition"]),
+                "description": data.get("weather", [{}])[0].get("description", DEFAULT_WEATHER["description"]),
+                "humidity": data.get("main", {}).get("humidity", DEFAULT_WEATHER["humidity"]),
+                "wind_kph": round(data.get("wind", {}).get("speed", 0) * 3.6),
+                "high": f"{round(high_c * 9 / 5 + 32)}°F",
+                "low": f"{round(low_c * 9 / 5 + 32)}°F",
+                "rain_chance": f"{rain_prob}%",
+            }
+            return weather
+        except requests.RequestException:
+            return {**DEFAULT_WEATHER, "city": display_city}
+
+    url = "https://api.open-meteo.com/v1/forecast"
     params = {
-        "q": city,
-        "appid": api_key,
-        "units": "metric",
+        "latitude": latitude,
+        "longitude": longitude,
+        "current": "temperature_2m,relative_humidity_2m,weather_code,windspeed_10m,precipitation_probability",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_mean",
+        "timezone": "America/Los_Angeles",
+        "temperature_unit": "fahrenheit",
+        "windspeed_unit": "mph",
+        "precipitation_unit": "inch",
     }
 
     try:
         response = requests.get(url, params=params, timeout=6)
         response.raise_for_status()
         data = response.json()
-        temp_c = data.get("main", {}).get("temp", 0)
-        high_c = data.get("main", {}).get("temp_max", temp_c)
-        low_c = data.get("main", {}).get("temp_min", temp_c)
-        rain_prob = 0
-        if data.get("rain"):
-            rain_prob = int(data["rain"].get("1h", 0) * 100)
-        elif data.get("pop") is not None:
-            rain_prob = int(float(data.get("pop", 0)) * 100)
+        current = data.get("current", {})
+        daily = data.get("daily", {})
+        daily_max = daily.get("temperature_2m_max", [current.get("temperature_2m", 0)])
+        daily_min = daily.get("temperature_2m_min", [current.get("temperature_2m", 0)])
+        daily_rain = daily.get("precipitation_probability_mean", [current.get("precipitation_probability", 0)])
+        weather_code = current.get("weather_code", 0)
+        condition_map = {
+            0: ("Clear", "Clear sky"),
+            1: ("Mainly Clear", "Mainly clear"),
+            2: ("Partly Cloudy", "Partly cloudy"),
+            3: ("Cloudy", "Cloudy"),
+            45: ("Fog", "Fog"),
+            48: ("Rime Fog", "Rime fog"),
+            51: ("Light Drizzle", "Light drizzle"),
+            53: ("Drizzle", "Drizzle"),
+            55: ("Heavy Drizzle", "Heavy drizzle"),
+            61: ("Light Rain", "Light rain"),
+            63: ("Rain", "Rain"),
+            65: ("Heavy Rain", "Heavy rain"),
+            71: ("Light Snow", "Light snow"),
+            73: ("Snow", "Snow"),
+            75: ("Heavy Snow", "Heavy snow"),
+            95: ("Thunderstorm", "Thunderstorm"),
+        }
+        condition, description = condition_map.get(weather_code, (DEFAULT_WEATHER["condition"], DEFAULT_WEATHER["description"]))
         weather = {
-            "city": data.get("name", city),
-            "temp": f"{round(temp_c * 9 / 5 + 32)}°F",
-            "condition": data.get("weather", [{}])[0].get("main", DEFAULT_WEATHER["condition"]),
-            "description": data.get("weather", [{}])[0].get("description", DEFAULT_WEATHER["description"]),
-            "humidity": data.get("main", {}).get("humidity", DEFAULT_WEATHER["humidity"]),
-            "wind_kph": round(data.get("wind", {}).get("speed", 0) * 3.6),
-            "high": f"{round(high_c * 9 / 5 + 32)}°F",
-            "low": f"{round(low_c * 9 / 5 + 32)}°F",
-            "rain_chance": f"{rain_prob}%",
+            "city": display_city,
+            "temp": f"{round(float(current.get('temperature_2m', 0)))}°F",
+            "condition": condition,
+            "description": description,
+            "humidity": current.get("relative_humidity_2m", DEFAULT_WEATHER["humidity"]),
+            "wind_kph": round(float(current.get("windspeed_10m", 0)) * 1.60934),
+            "high": f"{round(float(daily_max[0] if daily_max else current.get('temperature_2m', 0)))}°F",
+            "low": f"{round(float(daily_min[0] if daily_min else current.get('temperature_2m', 0)))}°F",
+            "rain_chance": f"{int(float(daily_rain[0] if daily_rain else current.get('precipitation_probability', 0)))}%",
         }
         return weather
     except requests.RequestException:
-        return {**DEFAULT_WEATHER, "city": city}
+        return {**DEFAULT_WEATHER, "city": display_city}
 
 
 def get_events():
