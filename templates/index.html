@@ -11,9 +11,16 @@
       <section class="hero">
         <div class="card clock-card">
           <div class="clock-row">
-            <div>
+            <div class="clock-info">
               <h1 id="clock">--:--:--</h1>
               <p id="date" class="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
+            </div>
+            <div class="map-container">
+              <iframe
+                src="https://map.purpleair.com/air-quality-standards-us-epa-aqi?opt=%2F1%2Flp%2Fa10%2Fp604800%2FcC0#11.42/47.6202/-122.1715"
+                title="PurpleAir Air Quality Map"
+                loading="lazy"
+              ></iframe>
             </div>
             <div class="weather-inline">
               <div class="weather-metric">Current {{ weather.temp }}</div>
