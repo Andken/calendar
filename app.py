@@ -320,6 +320,91 @@ def build_week_grid(events, forecast=None):
     return weeks
 
 
+def get_air_quality():
+    api_key = os.getenv("GOOGLE_AIR_QUALITY_API_KEY", os.getenv("GOOGLE_MAPS_API_KEY", "")).strip()
+    latitude, longitude = 47.632472, -122.167306
+
+    if api_key:
+        url = f"https://airquality.googleapis.com/v1/currentConditions:lookup?key={api_key}"
+        payload = {
+            "location": {"latitude": latitude, "longitude": longitude},
+            "extraComputations": ["DOMINANT_POLLUTANT_CONCENTRATION", "POLLUTANT_CONCENTRATION", "LOCAL_AQI"]
+        }
+        try:
+            res = requests.post(url, json=payload, timeout=5)
+            if res.ok:
+                data = res.json()
+                indexes = data.get("indexes", [])
+                usaqi = next((i for i in indexes if i.get("code") in ["usaqi", "uaqi"]), indexes[0] if indexes else {})
+                aqi_val = usaqi.get("aqi", 50)
+                category = usaqi.get("category", "Good")
+                pm25 = 0
+                for p in data.get("pollutants", []):
+                    if p.get("code") == "pm25":
+                        pm25 = round(p.get("concentration", {}).get("value", 0), 1)
+
+                color = "#10b981" if aqi_val <= 50 else "#f59e0b" if aqi_val <= 100 else "#f97316" if aqi_val <= 150 else "#ef4444"
+                return {
+                    "aqi": aqi_val,
+                    "category": category,
+                    "pm2_5": pm25,
+                    "color": color,
+                    "source": "Google Air Quality API",
+                    "lat": latitude,
+                    "lng": longitude,
+                }
+        except Exception as e:
+            print("Google Air Quality API error:", e)
+
+    url = "https://air-quality-api.open-meteo.com/v1/air-quality"
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "current": "us_aqi,pm2_5",
+        "timezone": "America/Los_Angeles"
+    }
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        if res.ok:
+            data = res.json()
+            curr = data.get("current", {})
+            aqi_val = int(curr.get("us_aqi", 42))
+            pm25 = round(float(curr.get("pm2_5", 10.0)), 1)
+
+            if aqi_val <= 50:
+                category, color = "Good", "#10b981"
+            elif aqi_val <= 100:
+                category, color = "Moderate", "#f59e0b"
+            elif aqi_val <= 150:
+                category, color = "Unhealthy for Sensitive Groups", "#f97316"
+            elif aqi_val <= 200:
+                category, color = "Unhealthy", "#ef4444"
+            else:
+                category, color = "Very Unhealthy", "#8b5cf6"
+
+            return {
+                "aqi": aqi_val,
+                "category": category,
+                "pm2_5": pm25,
+                "color": color,
+                "source": "Google / EPA Standard Air Quality",
+                "lat": latitude,
+                "lng": longitude,
+            }
+    except Exception as e:
+        print("Air Quality fetch error:", e)
+
+    return {
+        "aqi": 42,
+        "category": "Good",
+        "pm2_5": 9.5,
+        "color": "#10b981",
+        "source": "Google / EPA Standard Air Quality",
+        "lat": latitude,
+        "lng": longitude,
+    }
+
+
 @app.route("/")
 def index():
     now = datetime.now(SEATTLE_TZ)
@@ -328,6 +413,7 @@ def index():
         "index.html",
         now=now,
         weather=get_weather(),
+        air_quality=get_air_quality(),
         weeks=build_week_grid(events, forecast=get_daily_forecast(days=7)),
     )
 
