@@ -320,89 +320,162 @@ def build_week_grid(events, forecast=None):
     return weeks
 
 
-def get_air_quality():
-    api_key = os.getenv("GOOGLE_AIR_QUALITY_API_KEY", os.getenv("GOOGLE_MAPS_API_KEY", "")).strip()
-    latitude, longitude = 47.632472, -122.167306
+AIR_QUALITY_LOCATIONS = [
+    {"name": "Tiger Mountain", "lat": 47.4339, "lng": -122.0264},
+    {"name": "Cougar Mountain", "lat": 47.5145, "lng": -122.1065},
+    {"name": "Downtown Seattle", "lat": 47.6062, "lng": -122.3321},
+    {"name": "Ballard", "lat": 47.6686, "lng": -122.3869},
+    {"name": "Redmond", "lat": 47.6730, "lng": -122.1215},
+    {"name": "Issaquah", "lat": 47.5301, "lng": -122.0326},
+    {"name": "Renton", "lat": 47.4829, "lng": -122.2171},
+    {"name": "Kirkland", "lat": 47.6769, "lng": -122.2060},
+    {"name": "SoDo", "lat": 47.5812, "lng": -122.3301},
+    {"name": "Edmonds", "lat": 47.8100, "lng": -122.3770},
+    {"name": "Bothell", "lat": 47.7615, "lng": -122.2057},
+    {"name": "Woodinville", "lat": 47.7545, "lng": -122.1810},
+    {"name": "North Bend", "lat": 47.4939, "lng": -121.7868},
+    {"name": "Maple Valley", "lat": 47.3664, "lng": -122.0448},
+    {"name": "Auburn", "lat": 47.3073, "lng": -122.2285},
+    {"name": "Snoqualmie", "lat": 47.5337, "lng": -121.8369},
+    {"name": "Carnation", "lat": 47.5703, "lng": -121.9149},
+    {"name": "Sammamish", "lat": 47.6165, "lng": -122.0353},
+]
 
-    if api_key:
-        url = f"https://airquality.googleapis.com/v1/currentConditions:lookup?key={api_key}"
-        payload = {
-            "location": {"latitude": latitude, "longitude": longitude},
-            "extraComputations": ["DOMINANT_POLLUTANT_CONCENTRATION", "POLLUTANT_CONCENTRATION", "LOCAL_AQI"]
+DEFAULT_AIR_QUALITY_LOCATION = {"lat": 47.6101, "lng": -122.2015}
+AIRNOW_API_KEY = os.getenv("AIRNOW_API_KEY", "").strip()
+
+
+def aqi_category_and_color(aqi):
+    if aqi <= 50:
+        return "Good", "#10b981"
+    if aqi <= 100:
+        return "Moderate", "#f59e0b"
+    if aqi <= 150:
+        return "Unhealthy for Sensitive Groups", "#f97316"
+    if aqi <= 200:
+        return "Unhealthy", "#ef4444"
+    if aqi <= 300:
+        return "Very Unhealthy", "#8b5cf6"
+    return "Hazardous", "#a855f7"
+
+
+def fetch_airnow_aqi(latitude, longitude):
+    if not AIRNOW_API_KEY:
+        return None
+
+    url = "https://www.airnowapi.org/aq/observation/latLong/current/"
+    params = {
+        "format": "application/json",
+        "latitude": latitude,
+        "longitude": longitude,
+        "distance": 25,
+        "API_KEY": AIRNOW_API_KEY,
+    }
+
+    try:
+        res = requests.get(url, params=params, timeout=6)
+        res.raise_for_status()
+        data = res.json()
+        if not isinstance(data, list) or not data:
+            return None
+
+        pm25_obs = [obs for obs in data if obs.get("ParameterName") == "PM2.5"]
+        obs = pm25_obs[0] if pm25_obs else data[0]
+        aqi_val = int(obs.get("AQI", 42))
+        category = obs.get("Category", {}).get("Name", "Unknown")
+        color = "#10b981"
+        if aqi_val <= 50:
+            color = "#10b981"
+        elif aqi_val <= 100:
+            color = "#f59e0b"
+        elif aqi_val <= 150:
+            color = "#f97316"
+        elif aqi_val <= 200:
+            color = "#ef4444"
+        elif aqi_val <= 300:
+            color = "#8b5cf6"
+        else:
+            color = "#a855f7"
+
+        return {
+            "aqi": aqi_val,
+            "category": category,
+            "pm2_5": None,
+            "color": color,
+            "source": "AirNow",
+            "lat": latitude,
+            "lng": longitude,
         }
-        try:
-            res = requests.post(url, json=payload, timeout=5)
-            if res.ok:
-                data = res.json()
-                indexes = data.get("indexes", [])
-                usaqi = next((i for i in indexes if i.get("code") in ["usaqi", "uaqi"]), indexes[0] if indexes else {})
-                aqi_val = usaqi.get("aqi", 50)
-                category = usaqi.get("category", "Good")
-                pm25 = 0
-                for p in data.get("pollutants", []):
-                    if p.get("code") == "pm25":
-                        pm25 = round(p.get("concentration", {}).get("value", 0), 1)
+    except Exception as e:
+        print("AirNow fetch error:", e)
+        return None
 
-                color = "#10b981" if aqi_val <= 50 else "#f59e0b" if aqi_val <= 100 else "#f97316" if aqi_val <= 150 else "#ef4444"
-                return {
-                    "aqi": aqi_val,
-                    "category": category,
-                    "pm2_5": pm25,
-                    "color": color,
-                    "source": "Google Air Quality API",
-                    "lat": latitude,
-                    "lng": longitude,
-                }
-        except Exception as e:
-            print("Google Air Quality API error:", e)
 
+def fetch_open_meteo_aqi(latitude, longitude):
     url = "https://air-quality-api.open-meteo.com/v1/air-quality"
     params = {
         "latitude": latitude,
         "longitude": longitude,
         "current": "us_aqi,pm2_5",
-        "timezone": "America/Los_Angeles"
+        "timezone": "America/Los_Angeles",
     }
     try:
-        res = requests.get(url, params=params, timeout=5)
-        if res.ok:
-            data = res.json()
-            curr = data.get("current", {})
-            aqi_val = int(curr.get("us_aqi", 42))
-            pm25 = round(float(curr.get("pm2_5", 10.0)), 1)
-
-            if aqi_val <= 50:
-                category, color = "Good", "#10b981"
-            elif aqi_val <= 100:
-                category, color = "Moderate", "#f59e0b"
-            elif aqi_val <= 150:
-                category, color = "Unhealthy for Sensitive Groups", "#f97316"
-            elif aqi_val <= 200:
-                category, color = "Unhealthy", "#ef4444"
-            else:
-                category, color = "Very Unhealthy", "#8b5cf6"
-
-            return {
-                "aqi": aqi_val,
-                "category": category,
-                "pm2_5": pm25,
-                "color": color,
-                "source": "Google / EPA Standard Air Quality",
-                "lat": latitude,
-                "lng": longitude,
-            }
+        res = requests.get(url, params=params, timeout=6)
+        res.raise_for_status()
+        data = res.json()
+        curr = data.get("current", {})
+        aqi_val = int(curr.get("us_aqi", 42))
+        pm25 = round(float(curr.get("pm2_5", 10.0)), 1)
+        category, color = aqi_category_and_color(aqi_val)
+        return {
+            "aqi": aqi_val,
+            "category": category,
+            "pm2_5": pm25,
+            "color": color,
+            "source": "Open-Meteo Air Quality",
+            "lat": latitude,
+            "lng": longitude,
+        }
     except Exception as e:
-        print("Air Quality fetch error:", e)
+        print("Open-Meteo Air Quality fetch error:", e)
 
+    category, color = aqi_category_and_color(42)
     return {
         "aqi": 42,
-        "category": "Good",
+        "category": category,
         "pm2_5": 9.5,
-        "color": "#10b981",
-        "source": "Google / EPA Standard Air Quality",
+        "color": color,
+        "source": "Open-Meteo Air Quality",
         "lat": latitude,
         "lng": longitude,
     }
+
+
+def fetch_air_quality(latitude, longitude):
+    airnow = fetch_airnow_aqi(latitude, longitude)
+    if airnow:
+        return airnow
+    return fetch_open_meteo_aqi(latitude, longitude)
+
+
+def get_air_quality_locations():
+    locations = []
+    for location in AIR_QUALITY_LOCATIONS:
+        data = fetch_air_quality(location["lat"], location["lng"])
+        locations.append({
+            "name": location["name"],
+            "lat": location["lat"],
+            "lng": location["lng"],
+            "aqi": data["aqi"],
+            "category": data["category"],
+            "pm2_5": data["pm2_5"],
+            "color": data["color"],
+        })
+    return locations
+
+
+def get_air_quality():
+    return fetch_air_quality(DEFAULT_AIR_QUALITY_LOCATION["lat"], DEFAULT_AIR_QUALITY_LOCATION["lng"])
 
 
 @app.route("/")
@@ -414,6 +487,7 @@ def index():
         now=now,
         weather=get_weather(),
         air_quality=get_air_quality(),
+        air_quality_locations=get_air_quality_locations(),
         weeks=build_week_grid(events, forecast=get_daily_forecast(days=7)),
     )
 

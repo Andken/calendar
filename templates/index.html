@@ -99,8 +99,8 @@
       }, 60 * 60 * 1000);
 
       const airMap = L.map('air-map', {
-        center: [{{ air_quality.lat }}, {{ air_quality.lng }}],
-        zoom: 11,
+        center: [47.6101, -122.2015],
+        zoom: 10,
         zoomControl: false,
         attributionControl: false
       });
@@ -109,6 +109,26 @@
         maxZoom: 19,
         subdomains: 'abcd'
       }).addTo(airMap);
+
+      const mapLocations = {{ air_quality_locations | tojson }};
+      const currentLocation = {{ air_quality | tojson }};
+
+      const markers = mapLocations.map((loc) => {
+        return L.circleMarker([loc.lat, loc.lng], {
+          radius: 6,
+          color: '#ffffff',
+          weight: 2,
+          fillColor: loc.color,
+          fillOpacity: 1
+        }).addTo(airMap).bindTooltip(`${loc.name}: ${loc.aqi} (${loc.category})`, {
+          direction: 'top',
+          offset: [0, -10],
+          opacity: 0.95
+        });
+      });
+
+      // Keep the map locked at zoom level 10, so the added points remain on the current scale.
+      // The initial center stays fixed over Seattle.
 
       L.circle([{{ air_quality.lat }}, {{ air_quality.lng }}], {
         color: '{{ air_quality.color }}',
