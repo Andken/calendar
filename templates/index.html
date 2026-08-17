@@ -59,7 +59,7 @@
               </div>
               {% if day.events %}
                 {% for event in day.events %}
-                <div class="event-pill">
+                <div class="event-pill" data-prefix="{{ (event.title or '')[:3]|upper }}">
                   <span class="event-time">{{ event.time }}</span>
                   <span class="event-title">{{ event.title }}</span>
                 </div>

@@ -253,3 +253,15 @@ body {
   font-size: 0.88rem;
   font-weight: 400;
 }
+
+.event-pill[data-prefix="BBA"] .event-title {
+  color: #bfe3ff;
+}
+
+.event-pill[data-prefix="KLA"] .event-title {
+  color: #fef08a;
+}
+
+.event-pill[data-prefix="WMA"] .event-title {
+  color: #f9a8d4;
+}
