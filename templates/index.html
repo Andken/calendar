@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pi Calendar Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -17,17 +15,12 @@
               <h1 id="clock">--:--:--</h1>
               <p id="date" class="date">{{ now.strftime('%A, %B %d, %Y') }}</p>
             </div>
-            <div class="map-container" id="map-container">
-              <div id="air-map"></div>
-              <div class="aqi-badge">
-                <div class="aqi-score" style="background-color: {{ air_quality.color }};">
-                  {{ air_quality.aqi }}
-                </div>
-                <div class="aqi-info">
-                  <div class="aqi-status">AQI • {{ air_quality.category }}</div>
-                  <div class="aqi-sub">PM2.5: {{ air_quality.pm2_5 }} µg/m³ | {{ air_quality.source }}</div>
-                </div>
-              </div>
+            <div class="map-container">
+              <iframe
+                src="https://map.purpleair.com/air-quality-standards-us-epa-aqi?opt=%2F1%2Flp%2Fa10%2Fp604800%2FcC0#11.42/47.6202/-122.1715"
+                title="PurpleAir Air Quality Map"
+                loading="lazy"
+              ></iframe>
             </div>
             <div class="weather-inline">
               <div class="weather-metric">Current {{ weather.temp }}</div>
@@ -97,53 +90,6 @@
       setInterval(() => {
         window.location.reload();
       }, 60 * 60 * 1000);
-
-      const airMap = L.map('air-map', {
-        center: [47.6101, -122.2015],
-        zoom: 10,
-        zoomControl: false,
-        attributionControl: false
-      });
-
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd'
-      }).addTo(airMap);
-
-      const mapLocations = {{ air_quality_locations | tojson }};
-      const currentLocation = {{ air_quality | tojson }};
-
-      const markers = mapLocations.map((loc) => {
-        return L.circleMarker([loc.lat, loc.lng], {
-          radius: 6,
-          color: '#ffffff',
-          weight: 2,
-          fillColor: loc.color,
-          fillOpacity: 1
-        }).addTo(airMap).bindTooltip(`${loc.name}: ${loc.aqi} (${loc.category})`, {
-          direction: 'top',
-          offset: [0, -10],
-          opacity: 0.95
-        });
-      });
-
-      // Keep the map locked at zoom level 10, so the added points remain on the current scale.
-      // The initial center stays fixed over Seattle.
-
-      L.circle([{{ air_quality.lat }}, {{ air_quality.lng }}], {
-        color: '{{ air_quality.color }}',
-        fillColor: '{{ air_quality.color }}',
-        fillOpacity: 0.25,
-        radius: 2200
-      }).addTo(airMap);
-
-      L.circleMarker([{{ air_quality.lat }}, {{ air_quality.lng }}], {
-        radius: 7,
-        color: '#ffffff',
-        weight: 2,
-        fillColor: '{{ air_quality.color }}',
-        fillOpacity: 1
-      }).addTo(airMap);
     </script>
   </body>
 </html>
