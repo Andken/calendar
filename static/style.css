@@ -224,3 +224,122 @@ body {
 .event-pill[data-prefix="WMA"] .event-title {
   color: #f9a8d4;
 }
+
+/* WaniKani Slim Bar */
+.wanikani-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px;
+  min-height: 38px;
+}
+
+.wk-person-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  font-size: 0.82rem;
+  overflow: hidden;
+}
+
+.wk-bar-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wk-tag {
+  font-weight: 700;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bba-tag {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+  border: 1px solid rgba(125, 211, 252, 0.4);
+}
+
+.kla-tag {
+  background: rgba(250, 204, 21, 0.2);
+  color: #fef08a;
+  border: 1px solid rgba(254, 240, 138, 0.4);
+}
+
+.wk-level {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.wk-bar-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wk-stat {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.wk-stat-dot {
+  opacity: 0.3;
+}
+
+.wk-due-val.has-due {
+  color: #fb7185;
+}
+
+.wk-bar-upcoming {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.wk-upcoming-lbl {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.wk-chips-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wk-chip {
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #fecdd3;
+}
+
+.wk-chip.muted {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #64748b;
+}
+
+.wk-bar-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(148, 163, 184, 0.2);
+  flex-shrink: 0;
+}
+
+

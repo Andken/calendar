@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -6,6 +7,7 @@ from zoneinfo import ZoneInfo
 import requests
 from dotenv import load_dotenv
 from flask import Flask, render_template
+
 
 # Google Calendar imports (optional)
 try:
@@ -320,18 +322,152 @@ def build_week_grid(events, forecast=None):
     return weeks
 
 
+WANIKANI_CACHE = {}
+
+
+
+def get_default_wanikani_stats(person_name):
+    now_local = datetime.now(SEATTLE_TZ)
+    current_hour = now_local.replace(minute=0, second=0, microsecond=0)
+    upcoming_hours = []
+    for offset in range(12):
+        slot_dt = current_hour + timedelta(hours=offset + 1)
+        upcoming_hours.append(
+            {
+                "hour": slot_dt.strftime("%-I %p").lower(),
+                "count": 0,
+            }
+        )
+    return {
+        "person": person_name,
+        "username": person_name,
+        "level": "--",
+        "outstanding": 0,
+        "today_accuracy": "--",
+        "reviews_today": 0,
+        "upcoming_hours": [],
+        "upcoming_active": [],
+        "has_key": False,
+    }
+
+
+def get_wanikani_stats(api_key, person_name):
+    api_key = (api_key or "").strip()
+    if not api_key:
+        return get_default_wanikani_stats(person_name)
+
+    cache_key = f"{person_name}_{api_key}"
+    now_ts = time.time()
+    if cache_key in WANIKANI_CACHE:
+        cached_data, cached_time = WANIKANI_CACHE[cache_key]
+        if now_ts - cached_time < 60:
+            return cached_data
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Wanikani-Revision": "20170710",
+    }
+
+    stats = get_default_wanikani_stats(person_name)
+    stats["has_key"] = True
+
+    try:
+        u_resp = requests.get("https://api.wanikani.com/v2/user", headers=headers, timeout=5)
+        if u_resp.status_code == 200:
+            u_data = u_resp.json().get("data", {})
+            stats["username"] = u_data.get("username", person_name)
+            stats["level"] = u_data.get("level", "--")
+
+        s_resp = requests.get("https://api.wanikani.com/v2/summary", headers=headers, timeout=5)
+        if s_resp.status_code == 200:
+            s_data = s_resp.json().get("data", {})
+            reviews_buckets = s_data.get("reviews", [])
+            now_utc = datetime.now(timezone.utc)
+            now_local = datetime.now(SEATTLE_TZ)
+            current_hour_local = now_local.replace(minute=0, second=0, microsecond=0)
+
+            hours_map = {}
+            upcoming_hours = []
+            for offset in range(24):
+                slot_dt = current_hour_local + timedelta(hours=offset + 1)
+                slot_key = slot_dt.strftime("%Y-%m-%d %H")
+                hours_map[slot_key] = {
+                    "hour": slot_dt.strftime("%-I %p").lower(),
+                    "count": 0,
+                }
+                upcoming_hours.append(hours_map[slot_key])
+
+            outstanding = 0
+            for bucket in reviews_buckets:
+                avail_str = bucket.get("available_at")
+                subject_ids = bucket.get("subject_ids", [])
+                if not avail_str:
+                    continue
+                avail_dt = datetime.fromisoformat(avail_str.replace("Z", "+00:00"))
+                cnt = len(subject_ids)
+                if avail_dt <= now_utc:
+                    outstanding += cnt
+                else:
+                    avail_local = avail_dt.astimezone(SEATTLE_TZ)
+                    slot_key = avail_local.strftime("%Y-%m-%d %H")
+                    if slot_key in hours_map:
+                        hours_map[slot_key]["count"] += cnt
+
+            stats["outstanding"] = outstanding
+            stats["upcoming_hours"] = upcoming_hours
+            stats["upcoming_active"] = [h for h in upcoming_hours if h["count"] > 0][:2]
+
+
+
+
+        start_of_today_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_of_today_utc = start_of_today_local.astimezone(timezone.utc)
+        iso_today = start_of_today_utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+        r_resp = requests.get(
+            f"https://api.wanikani.com/v2/review_statistics?updated_after={iso_today}",
+            headers=headers,
+            timeout=5,
+        )
+        if r_resp.status_code == 200:
+            r_data = r_resp.json().get("data", [])
+            stats["reviews_today"] = len(r_data)
+            percentages = [
+                item["data"]["percentage_correct"]
+                for item in r_data
+                if "percentage_correct" in item.get("data", {})
+            ]
+            if percentages:
+                avg_pct = sum(percentages) / len(percentages)
+                stats["today_accuracy"] = f"{round(avg_pct, 1)}%"
+            else:
+                stats["today_accuracy"] = "--"
+    except Exception as e:
+        print(f"Error fetching WaniKani stats for {person_name}: {e}")
+
+    WANIKANI_CACHE[cache_key] = (stats, now_ts)
+    return stats
+
+
 @app.route("/")
 def index():
     now = datetime.now(SEATTLE_TZ)
     events = get_events()
+    key_bba = os.getenv("WANIKANI_API_KEY_BBA", "").strip()
+    key_kla = os.getenv("WANIKANI_API_KEY_KLA", "").strip()
+    wanikani_bba = get_wanikani_stats(key_bba, "BBA")
+    wanikani_kla = get_wanikani_stats(key_kla, "KLA")
     return render_template(
         "index.html",
         now=now,
         weather=get_weather(),
         weeks=build_week_grid(events, forecast=get_daily_forecast(days=7)),
+        wanikani_bba=wanikani_bba,
+        wanikani_kla=wanikani_kla,
     )
 
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "3001"))
     app.run(host="0.0.0.0", port=port, debug=False)
+

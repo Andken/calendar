@@ -31,6 +31,58 @@
           </div>
         </div>
 
+        <section class="card wanikani-bar">
+          <div class="wk-person-bar bba-bar">
+            <div class="wk-bar-user">
+              <span class="wk-tag bba-tag">BBA</span>
+              <span class="wk-level">Lvl {{ wanikani_bba.level }}</span>
+            </div>
+            <div class="wk-bar-stats">
+              <span class="wk-stat">Due: <strong class="wk-due-val {% if wanikani_bba.outstanding > 0 %}has-due{% endif %}">{{ wanikani_bba.outstanding }}</strong></span>
+              <span class="wk-stat-dot">•</span>
+              <span class="wk-stat">Today: <strong>{{ wanikani_bba.today_accuracy }}</strong></span>
+            </div>
+            <div class="wk-bar-upcoming">
+              <span class="wk-upcoming-lbl">Upcoming:</span>
+              <div class="wk-chips-list">
+                {% if wanikani_bba.upcoming_active %}
+                  {% for slot in wanikani_bba.upcoming_active %}
+                  <span class="wk-chip">{{ slot.hour }}: <strong>{{ slot.count }}</strong></span>
+                  {% endfor %}
+                {% else %}
+                  <span class="wk-chip muted">None</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="wk-bar-divider"></div>
+
+          <div class="wk-person-bar kla-bar">
+            <div class="wk-bar-user">
+              <span class="wk-tag kla-tag">KLA</span>
+              <span class="wk-level">Lvl {{ wanikani_kla.level }}</span>
+            </div>
+            <div class="wk-bar-stats">
+              <span class="wk-stat">Due: <strong class="wk-due-val {% if wanikani_kla.outstanding > 0 %}has-due{% endif %}">{{ wanikani_kla.outstanding }}</strong></span>
+              <span class="wk-stat-dot">•</span>
+              <span class="wk-stat">Today: <strong>{{ wanikani_kla.today_accuracy }}</strong></span>
+            </div>
+            <div class="wk-bar-upcoming">
+              <span class="wk-upcoming-lbl">Upcoming:</span>
+              <div class="wk-chips-list">
+                {% if wanikani_kla.upcoming_active %}
+                  {% for slot in wanikani_kla.upcoming_active %}
+                  <span class="wk-chip">{{ slot.hour }}: <strong>{{ slot.count }}</strong></span>
+                  {% endfor %}
+                {% else %}
+                  <span class="wk-chip muted">None</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="card events-card">
         <div class="week-grid">
           {% for week in weeks %}
