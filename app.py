@@ -342,6 +342,8 @@ AIR_QUALITY_LOCATIONS = [
 ]
 
 DEFAULT_AIR_QUALITY_LOCATION = {"lat": 47.6101, "lng": -122.2015}
+OPENAQ_API_KEY = os.getenv("OPENAQ_API_KEY", "").strip()
+PURPLEAIR_API_KEY = os.getenv("PURPLEAIR_API_KEY", "").strip()
 AIRNOW_API_KEY = os.getenv("AIRNOW_API_KEY", "").strip()
 
 
@@ -357,6 +359,185 @@ def aqi_category_and_color(aqi):
     if aqi <= 300:
         return "Very Unhealthy", "#8b5cf6"
     return "Hazardous", "#a855f7"
+
+
+def pm25_to_aqi(pm25):
+    """Convert PM2.5 (µg/m³) to AQI using EPA breakpoints"""
+    if pm25 <= 12:
+        return int((pm25 / 12) * 50)
+    elif pm25 <= 35.4:
+        return int(50 + ((pm25 - 12) / (35.4 - 12)) * 50)
+    elif pm25 <= 55.4:
+        return int(100 + ((pm25 - 35.4) / (55.4 - 35.4)) * 50)
+    elif pm25 <= 150.4:
+        return int(150 + ((pm25 - 55.4) / (150.4 - 55.4)) * 50)
+    elif pm25 <= 250.4:
+        return int(200 + ((pm25 - 150.4) / (250.4 - 150.4)) * 100)
+    else:
+        return int(300 + ((pm25 - 250.4) / 50) * 50)
+
+
+def fetch_openaq_aqi(latitude, longitude):
+    """Fetch air quality from Open AQ v3 API"""
+    if not OPENAQ_API_KEY:
+        return None
+
+    try:
+        # Step 1: Find locations near the coordinates
+        # Open AQ doesn't have a direct geographic query, so we'll search for any locations
+        # and get their latest data. For now, get a sample of locations with recent data.
+        locations_url = "https://api.openaq.org/v3/locations"
+        locations_params = {
+            "limit": 100,
+            "sort": "-datetimeLast",
+        }
+        locations_headers = {
+            "X-API-Key": OPENAQ_API_KEY,
+        }
+        
+        loc_res = requests.get(locations_url, params=locations_params, headers=locations_headers, timeout=6)
+        if loc_res.status_code != 200:
+            print(f"Open AQ locations error: {loc_res.status_code}")
+            return None
+        
+        locations_data = loc_res.json()
+        locations = locations_data.get("results", [])
+        
+        if not locations:
+            print("Open AQ: No locations found")
+            return None
+        
+        # Step 2: Find the closest location by distance
+        min_distance = float('inf')
+        closest_location_id = None
+        
+        for loc in locations:
+            if loc.get("datetimeLast"):  # Only consider locations with data
+                coords = loc.get("coordinates", {})
+                loc_lat = coords.get("latitude")
+                loc_lon = coords.get("longitude")
+                
+                if loc_lat and loc_lon:
+                    # Simple distance calculation
+                    distance = ((latitude - loc_lat) ** 2 + (longitude - loc_lon) ** 2) ** 0.5
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_location_id = loc.get("id")
+        
+        if closest_location_id is None:
+            print("Open AQ: No valid location found")
+            return None
+        
+        # Step 3: Get latest measurements for the closest location
+        latest_url = f"https://api.openaq.org/v3/locations/{closest_location_id}/latest"
+        latest_params = {
+            "limit": 100,
+        }
+        
+        lat_res = requests.get(latest_url, params=latest_params, headers=locations_headers, timeout=6)
+        if lat_res.status_code != 200:
+            print(f"Open AQ latest error: {lat_res.status_code}")
+            return None
+        
+        latest_data = lat_res.json()
+        results = latest_data.get("results", [])
+        
+        # Find PM2.5 measurement
+        pm25_value = None
+        for result in results:
+            # Check if this is a PM2.5 measurement by looking at the sensor
+            value = result.get("value")
+            if value is not None:
+                # Assume first valid numeric value is PM2.5 (or check sensor metadata)
+                pm25_value = float(value)
+                break
+        
+        if pm25_value is None:
+            print("Open AQ: No PM2.5 value found")
+            return None
+        
+        aqi_val = pm25_to_aqi(pm25_value)
+        category, color = aqi_category_and_color(aqi_val)
+
+        return {
+            "aqi": aqi_val,
+            "category": category,
+            "pm2_5": round(pm25_value, 1),
+            "color": color,
+            "source": "Open AQ",
+            "lat": latitude,
+            "lng": longitude,
+        }
+    except Exception as e:
+        print(f"Open AQ error: {e}")
+        return None
+
+
+def fetch_purpleair_aqi(latitude, longitude):
+    if not PURPLEAIR_API_KEY:
+        return None
+
+    url = "https://api.purpleair.com/v1/sensors"
+    params = {
+        "fields": "pm2.5_60minute",
+        "max_age": 3600,
+        "lat": latitude,
+        "lon": longitude,
+        "max_distance": 10000,  # 10km radius
+    }
+    headers = {
+        "X-API-Key": PURPLEAIR_API_KEY,
+    }
+
+    try:
+        res = requests.get(url, params=params, headers=headers, timeout=6)
+        if res.status_code != 200:
+            print(f"PurpleAir error: {res.status_code} - {res.text[:200] if res.text else 'No response'}")
+            return None
+        
+        data = res.json()
+        sensors = data.get("data", [])
+        fields = data.get("fields", [])
+        
+        if not sensors or len(sensors) == 0:
+            return None
+
+        # Find the index of pm2.5_60minute in the fields list
+        pm25_index = None
+        try:
+            pm25_index = fields.index("pm2.5_60minute")
+        except ValueError:
+            return None
+
+        # Get the first sensor's PM2.5 value
+        sensor = sensors[0]
+        if not isinstance(sensor, (list, tuple)) or len(sensor) <= pm25_index:
+            return None
+        
+        pm25_value = sensor[pm25_index]
+        
+        if pm25_value is None or not isinstance(pm25_value, (int, float)):
+            return None
+        
+        pm25_value = float(pm25_value)
+        aqi_val = pm25_to_aqi(pm25_value)
+        category, color = aqi_category_and_color(aqi_val)
+
+        return {
+            "aqi": aqi_val,
+            "category": category,
+            "pm2_5": round(pm25_value, 1),
+            "color": color,
+            "source": "PurpleAir",
+            "lat": latitude,
+            "lng": longitude,
+        }
+    except requests.exceptions.RequestException as e:
+        print(f"PurpleAir request error: {e}")
+        return None
+    except Exception as e:
+        print(f"PurpleAir error: {e}")
+        return None
 
 
 def fetch_airnow_aqi(latitude, longitude):
@@ -452,10 +633,38 @@ def fetch_open_meteo_aqi(latitude, longitude):
 
 
 def fetch_air_quality(latitude, longitude):
+    # Try Open AQ first (if API key available)
+    openaq = fetch_openaq_aqi(latitude, longitude)
+    if openaq:
+        return openaq
+    
+    # Fallback to Open-Meteo Air Quality (free, no API key required)
+    openmeteo = fetch_open_meteo_aqi(latitude, longitude)
+    if openmeteo:
+        return openmeteo
+    
+    # Fallback to PurpleAir (if API key available and account is active)
+    purpleair = fetch_purpleair_aqi(latitude, longitude)
+    if purpleair:
+        return purpleair
+    
+    # Fallback to AirNow (if API key available)
     airnow = fetch_airnow_aqi(latitude, longitude)
     if airnow:
         return airnow
-    return fetch_open_meteo_aqi(latitude, longitude)
+    
+    # Last resort: return default
+    category, color = aqi_category_and_color(42)
+    return {
+        "aqi": 42,
+        "category": category,
+        "pm2_5": 9.5,
+        "color": color,
+        "source": "Default",
+        "lat": latitude,
+        "lng": longitude,
+    }
+
 
 
 def get_air_quality_locations():
