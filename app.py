@@ -415,7 +415,9 @@ def get_wanikani_stats(api_key, person_name):
 
             stats["outstanding"] = outstanding
             stats["upcoming_hours"] = upcoming_hours
-            stats["upcoming_active"] = [h for h in upcoming_hours if h["count"] > 0][:2]
+            stats["upcoming_active"] = [h for h in upcoming_hours if h["count"] > 0][:4]
+
+
 
 
 
