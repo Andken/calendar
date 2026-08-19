@@ -43,7 +43,6 @@
               <span class="wk-stat">Due: <strong class="wk-due-val {% if wanikani_bba.outstanding > 0 %}has-due{% endif %}">{{ wanikani_bba.outstanding }}</strong></span>
             </div>
             <div class="wk-bar-upcoming">
-              <span class="wk-upcoming-lbl">Upcoming:</span>
               <div class="wk-chips-list">
                 {% if wanikani_bba.upcoming_active %}
                   {% for slot in wanikani_bba.upcoming_active %}
@@ -69,7 +68,6 @@
               <span class="wk-stat">Due: <strong class="wk-due-val {% if wanikani_kla.outstanding > 0 %}has-due{% endif %}">{{ wanikani_kla.outstanding }}</strong></span>
             </div>
             <div class="wk-bar-upcoming">
-              <span class="wk-upcoming-lbl">Upcoming:</span>
               <div class="wk-chips-list">
                 {% if wanikani_kla.upcoming_active %}
                   {% for slot in wanikani_kla.upcoming_active %}
