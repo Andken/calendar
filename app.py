@@ -370,6 +370,7 @@ def get_wanikani_stats(api_key, person_name):
 
     stats = get_default_wanikani_stats(person_name)
     stats["has_key"] = True
+    now_local = datetime.now(SEATTLE_TZ)
 
     try:
         u_resp = requests.get("https://api.wanikani.com/v2/user", headers=headers, timeout=5)
@@ -383,7 +384,6 @@ def get_wanikani_stats(api_key, person_name):
             s_data = s_resp.json().get("data", {})
             reviews_buckets = s_data.get("reviews", [])
             now_utc = datetime.now(timezone.utc)
-            now_local = datetime.now(SEATTLE_TZ)
             current_hour_local = now_local.replace(minute=0, second=0, microsecond=0)
 
             hours_map = {}
@@ -417,33 +417,39 @@ def get_wanikani_stats(api_key, person_name):
             stats["upcoming_hours"] = upcoming_hours
             stats["upcoming_active"] = [h for h in upcoming_hours if h["count"] > 0][:4]
 
-
-
-
-
-
         start_of_today_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
         start_of_today_utc = start_of_today_local.astimezone(timezone.utc)
-        iso_today = start_of_today_utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        iso_today = start_of_today_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        r_resp = requests.get(
-            f"https://api.wanikani.com/v2/review_statistics?updated_after={iso_today}",
-            headers=headers,
-            timeout=5,
-        )
-        if r_resp.status_code == 200:
-            r_data = r_resp.json().get("data", [])
-            stats["reviews_today"] = len(r_data)
-            percentages = [
-                item["data"]["percentage_correct"]
-                for item in r_data
-                if "percentage_correct" in item.get("data", {})
-            ]
-            if percentages:
-                avg_pct = sum(percentages) / len(percentages)
-                stats["today_accuracy"] = f"{round(avg_pct, 1)}%"
+        url = f"https://api.wanikani.com/v2/review_statistics?updated_after={iso_today}"
+        items_today = []
+        while url:
+            r_resp = requests.get(url, headers=headers, timeout=5)
+            if r_resp.status_code == 200:
+                res_json = r_resp.json()
+                r_data = res_json.get("data", [])
+                for item in r_data:
+                    up_at_str = item.get("data_updated_at")
+                    if up_at_str:
+                        up_dt_utc = datetime.fromisoformat(up_at_str.replace("Z", "+00:00"))
+                        up_dt_local = up_dt_utc.astimezone(SEATTLE_TZ)
+                        if start_of_today_local <= up_dt_local:
+                            items_today.append(item)
+                url = res_json.get("pages", {}).get("next_url")
             else:
-                stats["today_accuracy"] = "--"
+                break
+
+        stats["reviews_today"] = len(items_today)
+        percentages = [
+            item["data"]["percentage_correct"]
+            for item in items_today
+            if "percentage_correct" in item.get("data", {})
+        ]
+        if percentages:
+            avg_pct = sum(percentages) / len(percentages)
+            stats["today_accuracy"] = f"{round(avg_pct, 1)}%"
+        else:
+            stats["today_accuracy"] = "--"
     except Exception as e:
         print(f"Error fetching WaniKani stats for {person_name}: {e}")
 
