@@ -304,6 +304,12 @@ body {
   gap: 6px;
   overflow-x: auto;
   white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.wk-bar-upcoming::-webkit-scrollbar {
+  display: none;
 }
 
 .wk-upcoming-lbl {
