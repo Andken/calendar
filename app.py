@@ -211,10 +211,15 @@ def get_events():
 
     SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
     now = datetime.now(SEATTLE_TZ)
-    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    time_min = start_of_today.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    today = now.date()
+    if today.weekday() == 6:
+        start_of_week = today
+    else:
+        start_of_week = today - timedelta(days=today.weekday() + 1)
+    grid_start = datetime.combine(start_of_week, datetime.min.time(), tzinfo=SEATTLE_TZ)
+    time_min = grid_start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     days_ahead = int(os.getenv("GOOGLE_CALENDAR_DAYS_AHEAD", "28").strip() or "28")
-    time_max = (now + timedelta(days=days_ahead)).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    time_max = (grid_start + timedelta(days=days_ahead + 14)).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     calendar_id = os.getenv("GOOGLE_CALENDAR_ID", "primary").strip() or "primary"
 
     service = None
@@ -250,29 +255,103 @@ def get_events():
         )
         items = events_result.get("items", [])
         events = []
+        min_grid_date = start_of_week - timedelta(days=7)
+        max_grid_date = start_of_week + timedelta(days=days_ahead + 14)
+
         for it in items:
-            start = it.get("start", {}).get("dateTime") or it.get("start", {}).get("date")
-            end = it.get("end", {}).get("dateTime") or it.get("end", {}).get("date")
-            if start and "T" in str(start):
-                start_dt = datetime.fromisoformat(str(start).replace("Z", "+00:00")).astimezone(SEATTLE_TZ)
-                event_date = start_dt.date().strftime("%Y-%m-%d")
-                start_time = start_dt.strftime("%H:%M")
-                if end and "T" in str(end):
-                    end_dt = datetime.fromisoformat(str(end).replace("Z", "+00:00")).astimezone(SEATTLE_TZ)
-                    time_str = f"{start_time}-{end_dt.strftime('%H:%M')}"
+            title = it.get("summary", "(No title)")
+            location = it.get("location", "")
+            start_info = it.get("start", {})
+            end_info = it.get("end", {})
+
+            start_raw = start_info.get("dateTime") or start_info.get("date")
+            end_raw = end_info.get("dateTime") or end_info.get("date")
+
+            if not start_raw:
+                continue
+
+            is_all_day = "dateTime" not in start_info and "T" not in str(start_raw)
+
+            if is_all_day:
+                s_date = datetime.strptime(str(start_raw)[:10], "%Y-%m-%d").date()
+                if end_raw:
+                    e_date = datetime.strptime(str(end_raw)[:10], "%Y-%m-%d").date()
                 else:
-                    time_str = start_time
+                    e_date = s_date + timedelta(days=1)
+
+                # Google Calendar end date is exclusive for all-day events
+                last_date = e_date if e_date > s_date else s_date + timedelta(days=1)
+
+                # Clamp to grid date range
+                cur_date = max(s_date, min_grid_date)
+                end_limit = min(last_date, max_grid_date)
+
+                while cur_date < end_limit:
+                    events.append(
+                        {
+                            "title": title,
+                            "time": "",
+                            "location": location,
+                            "date": cur_date.strftime("%Y-%m-%d"),
+                            "all_day": True,
+                        }
+                    )
+                    cur_date += timedelta(days=1)
             else:
-                event_date = str(start)
-                time_str = str(start)
-            events.append(
-                {
-                    "title": it.get("summary", "(No title)"),
-                    "time": time_str,
-                    "location": it.get("location", ""),
-                    "date": event_date,
-                }
-            )
+                s_dt = datetime.fromisoformat(str(start_raw).replace("Z", "+00:00")).astimezone(SEATTLE_TZ)
+                if end_raw and "T" in str(end_raw):
+                    e_dt = datetime.fromisoformat(str(end_raw).replace("Z", "+00:00")).astimezone(SEATTLE_TZ)
+                else:
+                    e_dt = s_dt
+
+                if e_dt > s_dt and e_dt.time() == datetime.min.time():
+                    last_date = (e_dt - timedelta(seconds=1)).date()
+                else:
+                    last_date = e_dt.date()
+
+                if last_date < s_dt.date():
+                    last_date = s_dt.date()
+
+                if s_dt.date() == last_date:
+                    start_time = s_dt.strftime("%H:%M")
+                    if e_dt > s_dt:
+                        time_str = f"{start_time}-{e_dt.strftime('%H:%M')}"
+                    else:
+                        time_str = start_time
+                    events.append(
+                        {
+                            "title": title,
+                            "time": time_str,
+                            "location": location,
+                            "date": s_dt.date().strftime("%Y-%m-%d"),
+                            "all_day": False,
+                        }
+                    )
+                else:
+                    # Multi-day timed event
+                    cur_date = max(s_dt.date(), min_grid_date)
+                    end_limit = min(last_date, max_grid_date)
+                    while cur_date <= end_limit:
+                        if cur_date == s_dt.date():
+                            time_str = f"{s_dt.strftime('%H:%M')}..."
+                            all_day_flag = False
+                        elif cur_date == last_date:
+                            time_str = f"...{e_dt.strftime('%H:%M')}"
+                            all_day_flag = False
+                        else:
+                            time_str = ""
+                            all_day_flag = True
+                        events.append(
+                            {
+                                "title": title,
+                                "time": time_str,
+                                "location": location,
+                                "date": cur_date.strftime("%Y-%m-%d"),
+                                "all_day": all_day_flag,
+                            }
+                        )
+                        cur_date += timedelta(days=1)
+
         if events:
             return events
     except Exception as e:
@@ -304,7 +383,14 @@ def build_week_grid(events, forecast=None):
                 for event in events
                 if event.get("date") == day_date.strftime("%Y-%m-%d")
             ]
-            day_events = sorted(day_events, key=lambda item: item.get("time", ""))
+            day_events = sorted(
+                day_events,
+                key=lambda item: (
+                    0 if item.get("all_day") or not item.get("time") else 1,
+                    item.get("time", ""),
+                    item.get("title", ""),
+                ),
+            )
             day_key = day_date.strftime("%Y-%m-%d")
             days.append(
                 {

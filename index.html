@@ -28,7 +28,7 @@
         <ul>
           {% for event in events %}
           <li>
-            <span class="time">{{ event.time }}</span>
+            {% if event.time %}<span class="time">{{ event.time }}</span>{% endif %}
             <span>{{ event.title }}</span>
           </li>
           {% endfor %}
